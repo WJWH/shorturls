@@ -13,7 +13,7 @@ import qualified Database.Redis as Hedis
 import           System.Environment
 import           System.Random
 
--- Some useful functions
+-- Some useful helper functions
 url_lifetime = 604800 -- 1 week in seconds
 
 newRandomID :: IO B8.ByteString
