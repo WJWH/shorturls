@@ -29,10 +29,10 @@ app' connpool defaultUrl = do
   get "/healthcheck" $ text "I'm OK. Thanks for asking!"
   
   post "/new-url" $ do
-    longURL <- (param "long_url")
+    longURL <- param "long_url"
     randomID <- liftIO newRandomID
     storeUrl connpool randomID (TE.encodeUtf8 longURL)
-    text . TL.fromStrict . TE.decodeUtf8 $ randomID
+    text $ "http://my-domain.org/" <> (TL.fromStrict . TE.decodeUtf8 $ randomID)
   
   get "/:random_id" $ do
     randomID <- param "random_id"

@@ -3,17 +3,21 @@ module Main (main) where
 
 import           Test.Hspec
 import           Test.Hspec.Wai
-import           Test.Hspec.Wai.JSON
 import           Network.HTTP.Types.Header
-import           Data.Aeson (Value(..), object, (.=))
+import           Network.Wai.Test
 
 import           Example (app)
 import qualified Database.Redis as Hedis
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as BL8
 
 main :: IO ()
 main = do
   connpool <- Hedis.checkedConnect Hedis.defaultConnectInfo
-  hspec $ before (flushRedis connpool) $ spec connpool
+  hspec 
+    $ before (flushRedis connpool) 
+    $ afterAll_ (flushRedis connpool)
+    $ spec connpool
 
 flushRedis :: Hedis.Connection -> IO ()
 flushRedis connpool = do
@@ -24,7 +28,7 @@ spec :: Hedis.Connection -> Spec
 spec connpool = with app $ do
   describe "GET /healthcheck" $ do
     it "responds with 200" $ do
-      get "/healthcheck" `shouldRespondWith` "I'm OK. thanks for asking!" { matchStatus = 200 }
+      get "/healthcheck" `shouldRespondWith` "I'm OK. Thanks for asking!" { matchStatus = 200 }
 
   describe "GET /random_id" $ do
     it "redirects to the default url if the url is not present in redis" $ do
@@ -42,3 +46,10 @@ spec connpool = with app $ do
         `shouldRespondWith` 200
       Right numberOfKeys <- liftIO $ Hedis.runRedis connpool $ Hedis.dbsize
       liftIO $ numberOfKeys `shouldBe` ( 1 :: Integer )
+
+  describe "entire flow" $ do
+    it "redirects to the URL you just inserted" $ do
+      postResponse <- postHtmlForm "/new-url" [("long_url","http://awesome-website.org")]
+      let randomID = BL8.toStrict . BL8.reverse . BL8.take 10 . BL8.reverse . simpleBody $ postResponse
+      get ("/" <> randomID) `shouldRespondWith` "" { matchStatus = 302
+                                                   , matchHeaders = ["Location" <:> "http://awesome-website.org"]}
